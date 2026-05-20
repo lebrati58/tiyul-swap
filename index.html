@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>החלפת טיולים</title>
+<style>
+:root {
+  --jerusalem: #3B82F6;
+  --haifa: #10B981;
+  --telaviv: #F59E0B;
+  --bg: #F8FAFC;
+  --white: #fff;
+  --text: #1E293B;
+  --muted: #64748B;
+  --border: #E2E8F0;
+  --radius: 14px;
+  --shadow: 0 1px 8px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── HEADER ── */
+.header {
+  background: #1E293B;
+  color: white;
+  padding: 18px 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.header h1 { font-size: 18px; font-weight: 700; }
+.header p { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+
+/* ── SETUP SCREEN ── */
+.setup {
+  max-width: 480px; margin: 40px auto; padding: 0 20px;
+}
+.setup-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); padding: 32px;
+}
+.setup-card h2 { font-size: 22px; margin-bottom: 6px; }
+.setup-card p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+select, input[type="text"] {
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  border: 2px solid var(--border); font-size: 15px; color: var(--text);
+  background: var(--white); cursor: pointer; transition: border 0.2s;
+  -webkit-appearance: none;
+}
+select:focus, input:focus { outline: none; border-color: #6366F1; }
+
+.btn-go {
+  width: 100%; padding: 14px; background: #6366F1; color: white;
+  border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: background 0.2s; margin-top: 4px;
+}
+.btn-go:hover { background: #4F46E5; }
+
+/* ── MAIN LAYOUT ── */
+.app { display: none; max-width: 1100px; margin: 0 auto; padding: 24px 16px; gap: 20px; }
+.app.two-col { display: grid; grid-template-columns: 1fr 1fr; }
+.app.one-col { display: block; }
+@media (max-width: 768px) { .app.two-col { grid-template-columns: 1fr; } }
+
+/* ── PANEL ── */
+.panel { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.panel-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-header h3 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.panel-body { padding: 0; }
+
+/* ── TIYUL ITEM ── */
+.tiyul-item {
+  display: flex; align-items: center; gap: 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s; cursor: default;
+}
+.tiyul-item:last-child { border-bottom: none; }
+.tiyul-item.selected { background: #EEF2FF; }
+.tiyul-item.missed { background: #FEF2F2; }
+
+.tiyul-date-box {
+  flex-shrink: 0; width: 58px; padding: 12px 8px;
+  text-align: center; border-left: 1px solid var(--border);
+  background: #F8FAFC;
+}
+.tiyul-date-box .day { font-size: 20px; font-weight: 800; line-height: 1; }
+.tiyul-date-box .month { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tiyul-date-box .weekday { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.tiyul-content { flex: 1; padding: 12px 14px; min-width: 0; }
+.tiyul-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tiyul-guide { font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tiyul-action { flex-shrink: 0; padding: 12px 14px; }
+
+/* ── MISS BUTTON ── */
+.btn-miss {
+  padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid #FCA5A5; background: #FEF2F2; color: #DC2626;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.btn-miss:hover, .btn-miss.active { background: #DC2626; color: white; border-color: #DC2626; }
+.btn-miss.active::before { content: '✓ '; }
+
+/* ── ALTERNATIVES PANEL ── */
+.alt-panel-header {
+  padding: 16px 20px; background: #EEF2FF; border-bottom: 1px solid #C7D2FE;
+}
+.alt-panel-header .missed-label { font-size: 12px; color: #6366F1; font-weight: 600; margin-bottom: 4px; }
+.alt-panel-header .missed-title { font-size: 16px; font-weight: 700; }
+.alt-panel-header .missed-date { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+.alt-empty {
+  text-align: center; padding: 40px 20px; color: var(--muted);
+}
+.alt-empty .icon { font-size: 40px; margin-bottom: 12px; }
+.alt-empty .title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.alt-empty .sub { font-size: 13px; }
+
+.alt-placeholder {
+  text-align: center; padding: 60px 20px; color: var(--muted);
+}
+.alt-placeholder .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+.alt-placeholder .text { font-size: 15px; font-weight: 500; opacity: 0.6; }
+
+/* ── ALTERNATIVE CARD ── */
+.alt-card {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  transition: background 0.15s; cursor: default;
+}
+.alt-card:last-child { border-bottom: none; }
+.alt-card:hover { background: #F8FAFC; }
+
+.alt-card-top {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px;
+}
+.alt-big-date {
+  flex-shrink: 0; background: var(--bg); border-radius: 10px;
+  padding: 8px 10px; text-align: center; border: 2px solid var(--border);
+  min-width: 54px;
+}
+.alt-big-date .d { font-size: 22px; font-weight: 800; line-height: 1; }
+.alt-big-date .m { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.alt-big-date .y { font-size: 10px; color: var(--muted); }
+
+.alt-info { flex: 1; }
+.alt-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+
+.alt-meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.meta-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  white-space: nowrap;
+}
+.chip-school-jerusalem { background: #DBEAFE; color: #1D4ED8; }
+.chip-school-haifa     { background: #D1FAE5; color: #065F46; }
+.chip-school-telaviv   { background: #FEF3C7; color: #92400E; }
+.chip-course { background: #F1F5F9; color: #475569; }
+.chip-guide  { background: #F5F3FF; color: #5B21B6; }
+
+.alt-sites {
+  font-size: 12px; color: var(--muted); background: var(--bg);
+  border-radius: 8px; padding: 8px 12px; line-height: 1.6;
+}
+
+.btn-select-alt {
+  width: 100%; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 700;
+  border: 2px solid #6366F1; background: white; color: #6366F1;
+  cursor: pointer; transition: all 0.15s; margin-top: 10px;
+}
+.btn-select-alt:hover { background: #6366F1; color: white; }
+.btn-select-alt.chosen { background: #6366F1; color: white; }
+
+/* ── SWAP REQUEST FORM ── */
+.swap-form {
+  padding: 16px 20px; background: #F0FDF4; border-top: 2px solid #BBF7D0;
+}
+.swap-form h4 { font-size: 14px; font-weight: 700; color: #065F46; margin-bottom: 10px; }
+.swap-form textarea {
+  width: 100%; border-radius: 8px; border: 1.5px solid #BBF7D0;
+  padding: 10px 12px; font-size: 13px; resize: none; margin-bottom: 10px;
+}
+.btn-post {
+  width: 100%; padding: 11px; background: #059669; color: white;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background 0.2s;
+}
+.btn-post:hover { background: #047857; }
+
+/* ── BOARD ── */
+.board-item {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.board-item:last-child { border-bottom: none; }
+.board-dot {
+  width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+}
+.board-content { flex: 1; }
+.board-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.board-row { font-size: 13px; color: var(--muted); margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.board-note { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 6px; padding: 5px 10px; margin-top: 6px; }
+.board-actions { display: flex; gap: 6px; margin-top: 8px; }
+.btn-board-ok { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #D1FAE5; color: #065F46; border: none; cursor: pointer; }
+.btn-board-del { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #FEE2E2; color: #B91C1C; border: none; cursor: pointer; }
+
+/* ── NAV ── */
+.nav {
+  display: flex; background: var(--white); border-bottom: 2px solid var(--border);
+  padding: 0 16px; gap: 2px; overflow-x: auto;
+}
+.nav-item {
+  padding: 14px 16px; font-size: 13px; font-weight: 600; color: var(--muted);
+  border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap;
+  transition: all 0.15s; margin-bottom: -2px;
+}
+.nav-item.active { color: #6366F1; border-bottom-color: #6366F1; }
+.nav-item:hover:not(.active) { color: var(--text); }
+.badge { background: #DC2626; color: white; border-radius: 10px; padding: 1px 6px; font-size: 10px; margin-right: 4px; }
+
+/* ── BACK BUTTON ── */
+.back-btn {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+  font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+  border: none; background: none;
+}
+.back-btn:hover { color: var(--text); }
+
+/* ── USER CHIP ── */
+.user-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  background: var(--bg); border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.user-chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── HIDDEN ── */
+.hidden { display: none !important; }
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #1E293B; color: white; padding: 12px 24px; border-radius: 24px;
+  font-size: 14px; font-weight: 600; z-index: 9999;
+  animation: fadeInOut 2.5s ease forwards;
+  pointer-events: none;
+}
+@keyframes fadeInOut {
+  0% { opacity:0; transform:translateX(-50%) translateY(10px); }
+  15% { opacity:1; transform:translateX(-50%) translateY(0); }
+  70% { opacity:1; }
+  100% { opacity:0; }
+}
+
+/* ── MOBILE: stack the two columns ── */
+@media (max-width: 768px) {
+  .right-panel-mobile { display: none; }
+  .right-panel-mobile.show { display: block; }
+  .left-panel-mobile.hide { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div style="font-size:26px">🗺️</div>
+  <div>
+    <h1>החלפת טיולים</h1>
+    <p>ירושלים · חיפה · תל אביב — מדריכי תיירות 2026</p>
+  </div>
+  <div style="margin-right:auto"></div>
+  <div id="user-chip-header" class="hidden"></div>
+</div>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen">
+  <div class="setup">
+    <div class="setup-card">
+      <h2>👋 ברוכים הבאים</h2>
+      <p>בחרו את בית הספר והקורס שלכם כדי לראות את לוח הטיולים ולמצוא החלפות.</p>
+      <div class="field">
+        <label>בית ספר</label>
+        <select id="sel-school" onchange="onSchoolChange()">
+          <option value="">— בחרו בית ספר —</option>
+          <option value="jerusalem">🏛️ ירושלים — מיכל 226171</option>
+          <option value="haifa">🌊 חיפה — יקינטון / טנא</option>
+          <option value="telaviv">🏙️ תל אביב — דולב / Ella / חיטה / יובל</option>
+        </select>
+      </div>
+      <div class="field hidden" id="field-course">
+        <label>קורס</label>
+        <select id="sel-course">
+          <option value="">— בחרו קורס —</option>
+        </select>
+      </div>
+      <div class="field hidden" id="field-name">
+        <label>שם (לזיהוי בלוח ההחלפות — אופציונלי)</label>
+        <input type="text" id="inp-name" placeholder="שם מלא" />
+      </div>
+      <button class="btn-go" onclick="startApp()">📋 פתח את לוח הטיולים שלי</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app" class="hidden">
+
+  <!-- NAV -->
+  <div class="nav">
+    <div class="nav-item active" id="nav-schedule" onclick="showSection('schedule')">📅 הטיולים שלי</div>
+    <div class="nav-item" id="nav-board" onclick="showSection('board')">🔄 לוח החלפות <span class="badge hidden" id="board-badge"></span></div>
+    <div style="margin-right:auto"></div>
+    <button class="back-btn" onclick="goBack()">← חזרה</button>
+  </div>
+
+  <!-- SCHEDULE SECTION -->
+  <div id="section-schedule">
+    <!-- TWO COLUMN LAYOUT -->
+    <div id="app-two-col" class="app two-col">
+
+      <!-- LEFT: My tiyulim -->
+      <div id="left-panel" class="left-panel-mobile">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📅 הטיולים שלי</h3>
+            <div id="my-user-chip" class="user-chip"></div>
+          </div>
+          <div class="panel-body" id="tiyulim-list"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Alternatives -->
+      <div id="right-panel" class="right-panel-mobile panel">
+        <!-- Shown when no tiyul selected -->
+        <div id="alt-placeholder" class="alt-placeholder">
+          <div class="icon">👈</div>
+          <div class="text">לחצו על ❌ ליד טיול שאתם לא יכולים לעשות<br>כדי לראות חלופות</div>
+        </div>
+        <!-- Shown when tiyul selected -->
+        <div id="alt-content" class="hidden">
+          <div class="alt-panel-header">
+            <div class="missed-label">❌ לא יכול/ה להגיע לטיול:</div>
+            <div class="missed-title" id="alt-missed-title"></div>
+            <div class="missed-date" id="alt-missed-date"></div>
+          </div>
+          <div id="alt-list"></div>
+          <div id="swap-form-container" class="hidden swap-form">
+            <h4>✅ <span id="swap-form-chosen"></span></h4>
+            <textarea id="swap-note" rows="2" placeholder="הוסיפו הערה (זמינות, טלפון...)"></textarea>
+            <button class="btn-post" onclick="doPostSwap()">📢 פרסם בקשת החלפה בלוח</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BOARD SECTION -->
+  <div id="section-board" class="hidden" style="max-width:700px;margin:24px auto;padding:0 16px;">
+    <div class="panel">
+      <div class="panel-header">
+        <h3>🔄 לוח החלפות</h3>
+        <span style="font-size:12px;color:var(--muted)">כל הבקשות הפתוחות</span>
+      </div>
+      <div id="board-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════
+const SCHOOLS = {
+  jerusalem: { name:'ירושלים', short:'ירש׳', chipClass:'chip-school-jerusalem', dot:'#3B82F6', emoji:'🏛️' },
+  haifa:     { name:'חיפה',    short:'חיפה', chipClass:'chip-school-haifa',     dot:'#10B981', emoji:'🌊' },
+  telaviv:   { name:'תל אביב', short:'ת״א',  chipClass:'chip-school-telaviv',   dot:'#F59E0B', emoji:'🏙️' }
+};
+const COURSES = {
+  'michal':   { name:'מיכל 226171',   school:'jerusalem' },
+  'yakinton': { name:'יקינטון 526171', school:'haifa' },
+  'tena':     { name:'טנא 525172',    school:'haifa' },
+  'dolev':    { name:'דולב',          school:'telaviv' },
+  'ella':     { name:'Ella',          school:'telaviv' },
+  'hita':     { name:'חיטה',          school:'telaviv' },
+  'yuval':    { name:'יובל',          school:'telaviv' }
+};
+const SCHOOL_COURSES = {
+  jerusalem: ['michal'],
+  haifa:     ['yakinton','tena'],
+  telaviv:   ['dolev','ella','hita','yuval']
+};
+
+const ALL = [
+  // ── JERUSALEM — מיכל ──
+  {s:'jerusalem',c:'michal',d:'2026-04-14',t:'שפלת יהודה הרומית ביזנטית',g:'מיכל בן עטר',p:'בית גוברין, בית ג\'מאל, מרשה'},
+  {s:'jerusalem',c:'michal',d:'2026-04-19',t:'ירושלים הרומית ביזנטית',g:'—',p:'לא סגור'},
+  {s:'jerusalem',c:'michal',d:'2026-04-21',t:'טבריה וסביבתה',g:'ד"ר אייל מירון',p:'טבריה'},
+  {s:'jerusalem',c:'michal',d:'2026-04-28',t:'נצרות וכנסיותיה',g:'—',p:'לא סגור'},
+  {s:'jerusalem',c:'michal',d:'2026-05-03',t:'נצרות סובב כינרת',g:'—',p:'נצרות, כינרת'},
+  {s:'jerusalem',c:'michal',d:'2026-05-05',t:'ירושלים — נהר הזיתים',g:'—',p:'ירושלים, נצרות'},
+  {s:'jerusalem',c:'michal',d:'2026-05-07',t:'סובב כנרת',g:'עקיבא סגל',p:'גשר הישנה, כורסי, כורזים, ירדנית, בית יגאל אלון'},
+  {s:'jerusalem',c:'michal',d:'2026-05-12',t:'קמפוס גולן וחרמון — א\'',g:'שמוליק שפרמן',p:'מצפה לשלום, עין קשתות, שמורת גמלא, הפארק התלמודי בקצרין'},
+  {s:'jerusalem',c:'michal',d:'2026-05-13',t:'קמפוס גולן וחרמון — ב\'',g:'שמוליק שפרמן',p:'תל פאחר, גל"א בניאס, אתר החרמון, מבצר נמרוד, ברכת רם, יער אודם'},
+  {s:'jerusalem',c:'michal',d:'2026-05-19',t:'רמלה לוד',g:'ד"ר ירון עובדיה',p:'כנסיית סנט ג\'ורג\', מסגד גדול, מגדל לבן, בריכת הקשתות, המרכז הקראי'},
+  {s:'jerusalem',c:'michal',d:'2026-05-26',t:'ירושלים בימי הביניים',g:'ד"ר אייל מירון',p:'הר הבית, רובע מוסלמי, הכותל הקטן, מוריסטאן, מגדל דוד'},
+  {s:'jerusalem',c:'michal',d:'2026-06-02',t:'עכו',g:'גלי נחום',p:'מוזיאון אסירי המחתרות, העיר הצלבנית, מסגד אל ג\'זאר, הנמל'},
+  {s:'jerusalem',c:'michal',d:'2026-06-09',t:'קיסריה ואפולוניה',g:'—',p:'חוף דור, נחל תנינים, קיסריה, אפולוניה'},
+  {s:'jerusalem',c:'michal',d:'2026-06-17',t:'קמפוס אצבע הגליל — א\'',g:'ניר קינן',p:'ראש פינה, תל חצור, אגמון החולה, נבי יושע'},
+  {s:'jerusalem',c:'michal',d:'2026-06-18',t:'קמפוס אצבע הגליל — ב\'',g:'ניר קינן',p:'תל דן, בניאס, מטולה, תל חי'},
+  {s:'jerusalem',c:'michal',d:'2026-06-23',t:'הכרמל',g:'גלי נחום',p:'גני הנדיב, זכרון יעקב, המוחרקה, דלית אל-כרמל, עתלית'},
+  {s:'jerusalem',c:'michal',d:'2026-06-30',t:'צפת ומירון',g:'עמית אהרוני',p:'הר מירון, קבר רשב"י, נבי סבלאן, ברעם'},
+  {s:'jerusalem',c:'michal',d:'2026-07-07',t:'גליל עליון מערבי',g:'ניר קינן',p:'מוזיאון לוחמי הגטאות, ראש הנקרה, מערת קשת, פקיעין'},
+  {s:'jerusalem',c:'michal',d:'2026-07-14',t:'ירושלים העות\'מנית — א\'',g:'תמר הירדני',p:'שער יפו, ממילא, מצודת דוד, בית כנסת החורבה, שער ציון'},
+  {s:'jerusalem',c:'michal',d:'2026-07-21',t:'יפו העתיקה',g:'שמוליק שפרמן',p:'יפו בהווה, נווה צדק, מגדל שלום, היכל העצמאות, שד\' רוטשילד'},
+  {s:'jerusalem',c:'michal',d:'2026-07-28',t:'עמק יזרעאל',g:'אפרת נתן',p:'מגידו, תל יזרעאל, הגלבוע, גן השלושה, ניר דוד'},
+  {s:'jerusalem',c:'michal',d:'2026-08-04',t:'ירושלים העות\'מנית — ב\'',g:'תמר הירדני',p:'משכנות שאננים, ימין משה, בית הקברות ממילא, מגרש הרוסים'},
+  {s:'jerusalem',c:'michal',d:'2026-08-11',t:'ירושלים החדשה בראשיתה',g:'תמר הירדני',p:'הדווידקה, נחלאות, שוק מחנה יהודה, התחנה הראשונה, המושבה הגרמנית'},
+  {s:'jerusalem',c:'michal',d:'2026-08-18',t:'תל אביב',g:'סגולה זמירי',p:'נחלת בנימין, שוק הכרמל, בית הקברות טרומפלדור, שרונה, כיכר רבין'},
+  {s:'jerusalem',c:'michal',d:'2026-08-25',t:'סיור ערב בתל אביב',g:'שירלי קייזר',p:'נמל תל אביב'},
+  {s:'jerusalem',c:'michal',d:'2026-09-01',t:'יד ושם והר הרצל',g:'עובד פינטו',p:'יד ושם, הר הרצל, בית הקברות הצבאי'},
+  {s:'jerusalem',c:'michal',d:'2026-09-08',t:'הרי יהודה — רג\'יונלי',g:'גיא נוימן',p:'אנדרטת גווילי האש, הר הטייסים, גל"א קסטל, לטרון'},
+  {s:'jerusalem',c:'michal',d:'2026-09-15',t:'מוזיאון ישראל',g:'ד"ר אייל מירון',p:'האגף לארכיאולוגיה'},
+  {s:'jerusalem',c:'michal',d:'2026-09-22',t:'מבואות ירושלים — תש"ח וששת הימים',g:'משה חרמץ',p:'ירושלים'},
+  {s:'jerusalem',c:'michal',d:'2026-09-24',t:'הקו העירוני',g:'ניר אורטל',p:'רמת רחל, גבעת התחמושת, הר הצופים, נבי סמואל'},
+  {s:'jerusalem',c:'michal',d:'2026-10-06',t:'ירושלים החדשה — גבעת הלאום',g:'מיכל בן עטר',p:'בית המשפט העליון, הכנסת, המנורה, מוזיאון ישראל'},
+
+  // ── HAIFA — יקינטון ──
+  {s:'haifa',c:'yakinton',d:'2026-05-06',t:'קיסריה',g:'גלי נחום',p:'קיסריה, נחל תנינים'},
+  {s:'haifa',c:'yakinton',d:'2026-05-13',t:'נצרות גליל',g:'שרה הרפז',p:'הר תבור, כנסיות, כפר כנא, הר הקפיצה, נצרת'},
+  {s:'haifa',c:'yakinton',d:'2026-05-18',t:'נצרות כנרת',g:'שרה הרפז',p:'הר האושר, טבחה, כפר נחום, כורסי, מגדלא, ירדנית'},
+  {s:'haifa',c:'yakinton',d:'2026-05-20',t:'מעבר אפק — נישה',g:'אלון נבון',p:'תל אפק, מקורות הירקון, מגדל צדק'},
+  {s:'haifa',c:'yakinton',d:'2026-05-25',t:'תל אביב',g:'יוסי גולדברג',p:'מגדל שלום, היכל העצמאות, שד\' רוטשילד, נחלת בנימין, שרונה, נמל ת"א'},
+  {s:'haifa',c:'yakinton',d:'2026-05-31',t:'אפולוניה + תל אביב נישה',g:'יוסי גולדברג',p:'אפולוניה, כיכר אתרים, שדרות בן גוריון, רחוב דיזנגוף, סיור לילה'},
+  {s:'haifa',c:'yakinton',d:'2026-06-03',t:'עכו',g:'גלי נחום',p:'מוזיאון אסירי המחתרות, העיר הצלבנית, מסגד אל ג\'זאר, הנמל'},
+  {s:'haifa',c:'yakinton',d:'2026-06-10',t:'צפון מדבר יהודה',g:'שרון רגב',p:'השומרוני הטוב, הורקניה, נבי מוסא, ואדי קלט, יריחו'},
+  {s:'haifa',c:'yakinton',d:'2026-06-17',t:'הרי ירושלים — נצרות',g:'שרון רגב',p:'כנסיות אבו גוש, יד השמונה, עין כרם'},
+  {s:'haifa',c:'yakinton',d:'2026-06-24',t:'ירושלים נצרות 1',g:'חנה בנדובסקי',p:'הר הזיתים, כנסיות הר הזיתים, הר ציון, כנסיית סנט ג\'יימס'},
+  {s:'haifa',c:'yakinton',d:'2026-07-01',t:'בנימין ושומרון',g:'אפרת נתן',p:'תל שילה, הר גריזים, ביקור בהתיישבות חדשה'},
+  {s:'haifa',c:'yakinton',d:'2026-07-08',t:'ירושלים נצרות 2',g:'חנה בנדובסקי',p:'גן הקבר, שער האריות, ויה דולורוזה, כנסיית הקבר'},
+  {s:'haifa',c:'yakinton',d:'2026-07-15',t:'צפת מירון',g:'נעם נחשון',p:'צפת, שביל הפסגה, קבר רשב"י, נבי סבלאן'},
+  {s:'haifa',c:'yakinton',d:'2026-07-22',t:'שימור היסטורי בחיפה',g:'מיכל דמסקי',p:'תל שקמונה, בת גלים, רמב"ם, מוזיאון העיר'},
+  {s:'haifa',c:'yakinton',d:'2026-07-29',t:'החרמון וצפון הגולן',g:'ניר קינן',p:'תל פאחר, קלעת נמרוד, החרמון, מג\'דל שמס, ברכת רם, הר בנטל'},
+  {s:'haifa',c:'yakinton',d:'2026-08-05',t:'הר חברון',g:'אורן ספיר',p:'הרודיון, גוש עציון, מערת המכפלה בחברון, סוסיא'},
+  {s:'haifa',c:'yakinton',d:'2026-08-30',t:'גליל תחתון מזרחי',g:'שלי אן פלג',p:'כפר כמא, נבי שועיב, ארבל, טבריה'},
+  {s:'haifa',c:'yakinton',d:'2026-09-02',t:'הרי ירושלים',g:'אפרת נתן',p:'נבי סמואל, הקסטל, הסטף, אנדרטת גווילי האש'},
+  {s:'haifa',c:'yakinton',d:'2026-09-07',t:'רמלה לוד',g:'רון פלד',p:'לוד: כנסיית גיאורגיוס, מוזיאון הפסיפסים; רמלה: מסגד גדול, מגדל לבן'},
+  {s:'haifa',c:'yakinton',d:'2026-09-09',t:'ירושלים עת חדשה 1',g:'ד"ר שמואל בהט',p:'שער יפו, ממילא, מצודת דוד, בית כנסת החורבה, שער ציון'},
+  {s:'haifa',c:'yakinton',d:'2026-09-16',t:'ירושלים עת חדשה 2',g:'ד"ר שמואל בהט',p:'המושבה הגרמנית, משכנות שאננים, ימין משה, נחלת שבעה'},
+  {s:'haifa',c:'yakinton',d:'2026-09-23',t:'עוטף עזה',g:'בן קופולוביץ',p:'יד מרדכי, נתיב העשרה, פתחת שלום, אנדרטת חץ שחור'},
+  {s:'haifa',c:'yakinton',d:'2026-10-07',t:'ירושלים בירת ישראל',g:'תמי צדוק',p:'גבעת התחמושת, הר הצופים, מגרש הרוסים, בית המשפט העליון, הכנסת'},
+  {s:'haifa',c:'yakinton',d:'2026-10-14',t:'התיישבות עמק יזרעאל',g:'אסתר שמואלי',p:'כפר יהושע, נהלל, גן השלושה, ניר דוד'},
+  {s:'haifa',c:'yakinton',d:'2026-10-21',t:'אצבע הגליל 1',g:'עמית אהרוני',p:'כורזים, תל חצור, אגמון החולה, נבי יושע, ראש פינה'},
+  {s:'haifa',c:'yakinton',d:'2026-10-26',t:'נגב מכתשים — א\'',g:'סגולה זמירי',p:'ירוחם, המכתש הגדול, מעלה עקרבים, ממשית'},
+  {s:'haifa',c:'yakinton',d:'2026-10-27',t:'נגב מכתשים — ב\'',g:'סגולה זמירי',p:'מרכז המבקרים במצפה רמון, מכתש רמון'},
+  {s:'haifa',c:'yakinton',d:'2026-11-01',t:'התיישבות כנרת',g:'ניר קינן',p:'כוכב הירדן, נהריים וגשר הישנה, חצר כנרת'},
+  {s:'haifa',c:'yakinton',d:'2026-11-04',t:'אצבע הגליל 2',g:'עמית אהרוני',p:'תל דן, הבניאס, תל חי, מטולה'},
+  {s:'haifa',c:'yakinton',d:'2026-11-09',t:'קמפוס נגב — א\'',g:'—',p:'צריף בן גוריון, עין עבדת, עבדת'},
+  {s:'haifa',c:'yakinton',d:'2026-11-10',t:'קמפוס נגב — ב\'',g:'—',p:'מו"פ נגב, הפארק הסולארי, שבטה'},
+  {s:'haifa',c:'yakinton',d:'2026-11-20',t:'סיור נישה — העצמה',g:'ברק אורי',p:'חורבת דנעילא, נחל שרך בצת'},
+  {s:'haifa',c:'yakinton',d:'2026-11-25',t:'ירושלים זרמים ביהדות',g:'תמי צדוק',p:'פארק הצבאים, בית כנסת רפורמי, נחלאות, שוק מחנה יהודה'},
+  {s:'haifa',c:'yakinton',d:'2026-11-29',t:'יד ושם והר הרצל',g:'רן צבר',p:'יד ושם, הר הרצל'},
+  {s:'haifa',c:'yakinton',d:'2026-12-02',t:'מתודיקות הדרכה בירושלים',g:'תמי צדוק',p:'סמטאות ירושלים'},
+
+  // ── HAIFA — טנא ──
+  {s:'haifa',c:'tena',d:'2026-05-11',t:'גליל תחתון מזרחי',g:'אסתר שמואלי',p:'כפר כמא, נבי שועיב, ארבל, טבריה'},
+  {s:'haifa',c:'tena',d:'2026-06-02',t:'מעבר — על דרך הים',g:'אלון נבון',p:'אפק, מקורות הירקון, מגדל צדק'},
+  {s:'haifa',c:'tena',d:'2026-06-05',t:'הטיול ככלי העצמה',g:'ברק אורי',p:'חורבת דנעילא, נחל שרך בצת'},
+  {s:'haifa',c:'tena',d:'2026-06-09',t:'נגב מערבי',g:'ד"ר שי רוזן',p:'גשר עד הלום, יד מרדכי, נתיב העשרה'},
+  {s:'haifa',c:'tena',d:'2026-06-16',t:'יד ושם והר הרצל',g:'הדרכה מקומית',p:'יד ושם, הר הרצל'},
+  {s:'haifa',c:'tena',d:'2026-06-18',t:'הרודיון חברון וגוש עציון',g:'ד"ר ירון עובדיה',p:'הרודיון, חברון, גוש עציון'},
+
+  // ── TEL AVIV — דולב ──
+  {s:'telaviv',c:'dolev',d:'2026-05-01',t:'נצרות בירושלים 1',g:'יוסי גולדברג / חנה בנדקובסקי',p:'נצרות, ירושלים'},
+  {s:'telaviv',c:'dolev',d:'2026-05-11',t:'טבריה והגליל התחתון',g:'יוסי גולדברג / עקיבא סגל',p:'ארבל, נבי שועייב, קברי צדיקים, טבריה, שיט בכנרת'},
+  {s:'telaviv',c:'dolev',d:'2026-05-18',t:'ירושלים רומית ביזנטית',g:'יוסי גולדברג / עמיחי שוורץ',p:'שער שכם, תצפית גגות, הקארדו, כנסיית הקבר'},
+  {s:'telaviv',c:'dolev',d:'2026-05-25',t:'ארכיאולוגיה בשרון',g:'יוסי גולדברג / ד"ר שלי אן פלג',p:'אפולוניה, קיסריה, נחל התנינים'},
+  {s:'telaviv',c:'dolev',d:'2026-06-01',t:'בנימין ושומרון',g:'יוסי גולדברג / אורן ספיר',p:'תל שילה, הר גריזים, נבי סמואל'},
+  {s:'telaviv',c:'dolev',d:'2026-06-08',t:'עוטף עזה',g:'יוסי גולדברג / רמי אהרוני',p:'יד מרדכי, אנדרטת חץ שחור, שדרות'},
+  {s:'telaviv',c:'dolev',d:'2026-06-15',t:'מישור החוף הדרומי',g:'יוסי גולדברג / בני פרנקל',p:'מכון איילון, ראשון לציון, גשר עד הלום, אשדוד, אשקלון'},
+  {s:'telaviv',c:'dolev',d:'2026-06-21',t:'קמפוס גליל עליון',g:'יוסי גולדברג / נעם נחשון',p:'צפת, ראש פינה, שביל הפסגה, קבר הרשב"י'},
+  {s:'telaviv',c:'dolev',d:'2026-06-22',t:'קמפוס גליל עליון מערבי',g:'יוסי גולדברג / גלי נחום',p:'מערת קשת, מונפורט, מוזיאון לוחמי הגטאות, ראש הנקרה, פקיעין'},
+  {s:'telaviv',c:'dolev',d:'2026-06-29',t:'ציפורי ובית שערים',g:'יוסי גולדברג / שי שצ\'ופק',p:'גל"א ציפורי, גל"א בית שערים'},
+  {s:'telaviv',c:'dolev',d:'2026-07-03',t:'יפו — חלק א\'',g:'יוסי גולדברג',p:'יפו העתיקה, יפו בהווה'},
+  {s:'telaviv',c:'dolev',d:'2026-07-06',t:'הכרמל',g:'יוסי גולדברג / רן צבר',p:'דלית אל-כרמל, עתלית, זכרון יעקב, רמת הנדיב'},
+  {s:'telaviv',c:'dolev',d:'2026-07-08',t:'ארכיאולוגיה בגליל התחתון',g:'יוסי גולדברג / נעם נחשון',p:'גן לאומי יודפת, הררית, חנתון, בית כנסת רפורמי'},
+  {s:'telaviv',c:'dolev',d:'2026-07-13',t:'הר חברון',g:'יוסי גולדברג / אורן ספיר',p:'גוש עציון, הרודיון, מערת המכפלה, סוסיא'},
+  {s:'telaviv',c:'dolev',d:'2026-07-20',t:'קמפוס אצבע הגליל — א\'',g:'יוסי גולדברג / ניר קינן',p:'תל חצור, שמורת החולה, אגמון החולה, נבי יושע'},
+  {s:'telaviv',c:'dolev',d:'2026-07-21',t:'קמפוס אצבע הגליל — ב\'',g:'יוסי גולדברג / ניר קינן',p:'תל דן, בניאס, תל חי, מטולה'},
+  {s:'telaviv',c:'dolev',d:'2026-07-27',t:'נצרות בהרי יהודה',g:'יוסי גולדברג / מיכל בן עטר',p:'כנסיות עין כרם, כנסיות אבו גוש, מנזר בית ג\'מאל, לטרון'},
+  {s:'telaviv',c:'dolev',d:'2026-08-03',t:'ירושלים של מעלה ושל מטה',g:'יוסי גולדברג / מיכל בן עטר',p:'הרובע ההרודיאני, מערת צדקיהו, טיילת החומות, מוזיאון ירושלים'},
+  {s:'telaviv',c:'dolev',d:'2026-08-10',t:'קריית המוזיאונים',g:'יוסי גולדברג / אורן ספיר',p:'מוזיאון ארצות המקרא, מוזיאון ישראל'},
+  {s:'telaviv',c:'dolev',d:'2026-08-27',t:'יפו — חלק ב\'',g:'יוסי גולדברג',p:'יפו בהווה, מתחם התחנה, סוזאן דלאל, נווה צדק'},
+  {s:'telaviv',c:'dolev',d:'2026-08-31',t:'ירושלים בימי הביניים',g:'יוסי גולדברג / ד"ר ירון עובדיה',p:'הר הבית, ארמונות אומיים, הכותל הקטן, מבנים ממלוכיים, מוריסטאן'},
+  {s:'telaviv',c:'dolev',d:'2026-09-02',t:'ירושלים העת החדשה',g:'יוסי גולדברג / ניר אורטל',p:'משכנות שאננים, המושבה הגרמנית, ימין משה, מגרש הרוסים'},
+  {s:'telaviv',c:'dolev',d:'2026-09-07',t:'הר הזיכרון — יד ושם',g:'יוסי גולדברג / משה חרמץ',p:'יד ושם, הר הרצל, חלקת גדולי האומה'},
+
+  // ── TEL AVIV — Ella ──
+  {s:'telaviv',c:'ella',d:'2026-05-06',t:'Beit Shean + Kokhav Hayarden',g:'Sharon Regev / Dr. Eyal Meiron',p:'Tel Hazor, Tel Dan, Agamon Hahula'},
+  {s:'telaviv',c:'ella',d:'2026-05-13',t:'Lower Galilee — Christianity',g:'Sharon Regev',p:'Mt. of Beatitudes, Tabgha, Capernaum, Kursi, Magdala, Yardenit'},
+  {s:'telaviv',c:'ella',d:'2026-05-20',t:'Jerusalem – Roman Byzantine',g:'Sharon Regev / Yehuda Kaplan',p:'Ramparts Walk, Damascus Gate, Holy Sepulchre, Rooftops, Cardo'},
+  {s:'telaviv',c:'ella',d:'2026-05-27',t:'Jerusalem – Christian Sites 1',g:'Sharon Regev / Hana Bendcowsky',p:'Latrun, Ein Karem, Abu Gosh, Yad HaShmona, Beit Jamal'},
+  {s:'telaviv',c:'ella',d:'2026-06-03',t:'Jerusalem Hills – Christian Sites',g:'Sharon Regev',p:'Churches on Mt of Olives, Mt Zion, Dormition Abbey, King David\'s Tomb'},
+  {s:'telaviv',c:'ella',d:'2026-06-10',t:'Jerusalem – Christian Sites 2',g:'Sharon Regev / Nir Ortal',p:'Lions Gate, Via Dolorosa, Santa Anna, Bethesda Pools, Church of Holy Sepulchre'},
+  {s:'telaviv',c:'ella',d:'2026-06-17',t:'Sea of Galilee – Christianity',g:'Sharon Regev / Aviv Hertzlich',p:'Mt. Tabor, Church of the Transfiguration, Mt. Precipice, Churches in Nazareth'},
+  {s:'telaviv',c:'ella',d:'2026-06-24',t:'Caesarea + Apolonia',g:'Sharon Regev / Yehuda Kaplan',p:'Appolonia, Nahal Taninim, Caesarea, Dor Beach'},
+  {s:'telaviv',c:'ella',d:'2026-07-01',t:'Jerusalem – Christian Communities',g:'Sharon Regev',p:'Jerusalem'},
+  {s:'telaviv',c:'ella',d:'2026-07-08',t:'Samaria – Shiloh + Mt. Gerizim',g:'Sharon Regev / Oren Sapir',p:'Herodium, Gush Etzion, Hebron, Cave of the Patriarchs, Susya'},
+  {s:'telaviv',c:'ella',d:'2026-07-15',t:'Galilee — Beit Shearim & Zippori',g:'Sharon Regev / Akiva Geller',p:'Beit Shearim, Zippori'},
+  {s:'telaviv',c:'ella',d:'2026-07-22',t:'Ramla Lod',g:'Sharon Regev / Dr. Yaron Ovadia',p:'Ramla: Karaite Center, Great Mosque, White Tower; Lod: St. George\'s, Mosaic Center'},
+  {s:'telaviv',c:'ella',d:'2026-09-02',t:'Jerusalem – Middle Ages',g:'Sharon Regev / Dr. Eyal Meiron',p:'Temple Mount, Umayyad Palaces, Mamluk sites, Muristan, Church of the Redeemer'},
+
+  // ── TEL AVIV — חיטה ──
+  {s:'telaviv',c:'hita',d:'2026-05-06',t:'שכונות בירושלים',g:'בני פרנקל',p:'ירושלים'},
+  {s:'telaviv',c:'hita',d:'2026-05-07',t:'צפת',g:'בני פרנקל / שמוליק שפרמן',p:'צפת'},
+  {s:'telaviv',c:'hita',d:'2026-05-11',t:'יד ושם והר הרצל',g:'בני פרנקל / עקיבא גלר',p:'יד ושם, הר הרצל'},
+  {s:'telaviv',c:'hita',d:'2026-05-13',t:'ירושלים מעצמות אירופה',g:'בני פרנקל',p:'ירושלים'},
+  {s:'telaviv',c:'hita',d:'2026-05-18',t:'הדרך לירושלים בתש"ח',g:'בני פרנקל / עקיבא גלר',p:'ירושלים, שפלה'},
+  {s:'telaviv',c:'hita',d:'2026-05-20',t:'זכרון יעקב ועתלית',g:'בני פרנקל',p:'זכרון יעקב, עתלית'},
+
+  // ── TEL AVIV — יובל ──
+  {s:'telaviv',c:'yuval',d:'2026-05-14',t:'צפון מדבר יהודה',g:'בני פרנקל',p:'השומרוני הטוב, הורקניה, נבי מוסה, ואדי קלט, קומראן, ים המלח'},
+  {s:'telaviv',c:'yuval',d:'2026-05-21',t:'כרמל',g:'בני פרנקל',p:'מוחרקה, דלית אל-כרמל, עתלית מחנה מעפילים, זכרון יעקב, רמת הנדיב'},
+  {s:'telaviv',c:'yuval',d:'2026-05-28',t:'ערד ובאר שבע',g:'בני פרנקל',p:'תל באר שבע, מוזיאון אנז"ק, בית אשל'},
+  {s:'telaviv',c:'yuval',d:'2026-06-04',t:'עמקים',g:'בני פרנקל',p:'מגידו, הגלבוע, כפר יהושוע, תל שימרון, גן השלושה, ניר דוד'},
+  {s:'telaviv',c:'yuval',d:'2026-06-11',t:'שפלה',g:'בני פרנקל',p:'תל בית שמש, תל עזיקה, חורבת קייפא, בית גוברין ומרישה, לכיש'},
+  {s:'telaviv',c:'yuval',d:'2026-06-18',t:'שומרון',g:'בני פרנקל / אפרת נתן',p:'תל שילה, הר גריזים, ביקור בהתיישבות חדשה'},
+  {s:'telaviv',c:'yuval',d:'2026-06-25',t:'חיפה',g:'בני פרנקל / גלי נחום',p:'טיילת לואי, מרכז הבהאים, מושבה גרמנית, ואדי ניסנאס, סטלה מאריס, מערת אליהו'},
+  {s:'telaviv',c:'yuval',d:'2026-07-02',t:'נישה גיאולוגיה',g:'בני פרנקל / מוטי זיק',p:'חתך מהכרמל לחוף'},
+  {s:'telaviv',c:'yuval',d:'2026-07-09',t:'הר חברון',g:'בני פרנקל / חיליק אברג\'יל',p:'גוש עציון, הרודיון, חברון, מערת המכפלה, סוסיא'},
+  {s:'telaviv',c:'yuval',d:'2026-07-16',t:'הרי ירושלים',g:'בני פרנקל / ד"ר ירון עובדיה',p:'נבי סמואל, יד השמונה, הסטף, אנדרטת גווילי האש'},
+  {s:'telaviv',c:'yuval',d:'2026-07-22',t:'ירושלים בית ראשון',g:'בני פרנקל',p:'ארמון הנציב, עיר דוד, כתף הנום, קברי בית ראשון, החומה הרחבה'},
+  {s:'telaviv',c:'yuval',d:'2026-07-30',t:'ירושלים בית שני 1',g:'בני פרנקל',p:'דגם בית שני, היכל הספר, מוזיאון ישראל, עיר דוד'},
+  {s:'telaviv',c:'yuval',d:'2026-08-06',t:'ירושלים בית שני 2',g:'בני פרנקל',p:'חפירות הכותל, מרכז דוידסון, מנהרות הכותל, הרובע ההרודיאני'},
+  {s:'telaviv',c:'yuval',d:'2026-08-20',t:'קיסריה',g:'בני פרנקל / ד"ר שי רוזן',p:'קיסריה, אפולוניה, נחל תנינים, חוף דור'},
+  {s:'telaviv',c:'yuval',d:'2026-08-27',t:'בית שערים וציפורי',g:'בני פרנקל / שמוליק שפרמן',p:'בית שערים, ציפורי'},
+  {s:'telaviv',c:'yuval',d:'2026-09-02',t:'קמפוס גולן — א\'',g:'שמוליק שפרמן',p:'החרמון, קלעת נמרוד, מסעדה, ברכת רם, הר בנטל, גמלא, קצרין, תל פאחר'},
+  {s:'telaviv',c:'yuval',d:'2026-09-03',t:'קמפוס גולן — ב\'',g:'שמוליק שפרמן',p:'גולן'},
+  {s:'telaviv',c:'yuval',d:'2026-09-10',t:'ירושלים רומית ביזנטית',g:'ד"ר אייל מירון',p:'שער שכם, כנסיית הקבר, כנסיית אלכסנדר נייבסקי, תצפית גגות'},
+  {s:'telaviv',c:'yuval',d:'2026-09-14',t:'בית שאן',g:'אסתר שמואלי',p:'כוכב הירדן ובית שאן'},
+  {s:'telaviv',c:'yuval',d:'2026-09-24',t:'ירושלים השלמות',g:'בני פרנקל',p:'ירושלים — השלמת אתרים'},
+  {s:'telaviv',c:'yuval',d:'2026-10-08',t:'רמלה לוד',g:'ד"ר ירון עובדיה',p:'כנסיית סנט ג\'ורג\', רמלה: מסגד גדול, מגדל לבן, בריכת הקשתות, בית הפסיפסים'},
+  {s:'telaviv',c:'yuval',d:'2026-10-15',t:'עין גדי והר סדום',g:'ד"ר ירון עובדיה',p:'עין גדי: נחל, שמורה ובית כנסת; הר סדום'},
+  {s:'telaviv',c:'yuval',d:'2026-10-19',t:'בקעת הירדן',g:'חיליק אברג\'יל',p:'דיר חגלה, קאסר אל יהוד, אנדרטת הבקעה, כביש אלון, יריחו, משק פצאל'},
+  {s:'telaviv',c:'yuval',d:'2026-10-21',t:'קמפוס גליל מערבי — א\'',g:'עמית אהרוני',p:'מוזיאון לוחמי הגטאות, ראש הנקרה, מערת קשת, מונפורט, פקיעין, ראש פינה, תל חצור'},
+  {s:'telaviv',c:'yuval',d:'2026-10-22',t:'קמפוס גליל מערבי — ב\'',g:'עמית אהרוני',p:'גליל מערבי'},
+  {s:'telaviv',c:'yuval',d:'2026-10-29',t:'התיישבות בעמקים',g:'ניר קינן',p:'בקעת כנרות ועמק הירדן, נהריים וגשר הישנה, חצר כנרת'}
+];
+
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+const MONTHS = ['','ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
+const DAYS   = ['ר','ב','ג','ד','ה','ו','ש'];
+function parseDate(s){const[y,m,d]=s.split('-').map(Number);return{y,m,d,obj:new Date(y,m-1,d)};}
+function fmt(s){const{d,m,y,obj}=parseDate(s);return{day:d,month:MONTHS[m],year:y,wd:DAYS[obj.getDay()],full:`${d} ${MONTHS[m]} ${y}`};}
+function tid(t){return `${t.s}|${t.c}|${t.d}`;}
+
+var _mem = { missed: [], swaps: [] };
+function getMissed() {
+  try { var v = localStorage.getItem('tw_missed'); return v ? JSON.parse(v) : _mem.missed.slice(); }
+  catch(e) { return _mem.missed.slice(); }
+}
+function saveMissed(a) {
+  _mem.missed = a;
+  try { localStorage.setItem('tw_missed', JSON.stringify(a)); } catch(e) {}
+}
+function getSwaps() {
+  try { var v = localStorage.getItem('tw_swaps'); return v ? JSON.parse(v) : _mem.swaps.slice(); }
+  catch(e) { return _mem.swaps.slice(); }
+}
+function saveSwaps(a) {
+  _mem.swaps = a;
+  try { localStorage.setItem('tw_swaps', JSON.stringify(a)); } catch(e) {}
+}
+function isMissed(t) { return getMissed().indexOf(tid(t)) !== -1; }
+
+// Keyword matching
+const KW=[
+  // אתרים ואזורים
+  ['קיסריה','caesarea'],
+  ['עכו','akko','acre'],
+  ['נצרות','nazareth','christianity','christian','lower galilee'],
+  ['ירושלים','jerusalem'],
+  ['יד ושם','yad vashem'],
+  ['חברון','hebron','gush etzion','גוש עציון'],
+  ['הרודיון','herodium'],
+  ['גולן','golan'],
+  ['חרמון','hermon'],
+  ['גליל','galilee'],
+  ['כרמל','carmel'],
+  ['צפת','safed'],
+  ['מירון'],
+  ['יפו','jaffa'],
+  ['טבריה','tiberias'],
+  ['כינרת','sea of galilee','כנרת'],
+  ['שומרון','samaria','שילה','shiloh','גריזים'],
+  ['נגב','negev','מכתש','ramon'],
+  ['ים המלח','dead sea','עין גדי'],
+  ['עמקים','jezreel','מגידו','יזרעאל'],
+  ['אצבע הגליל','תל חצור','אגמון'],
+  ['בית שערים','zippori','ציפורי'],
+  ['רמלה','לוד','ramla','lod'],
+  ['עוטף עזה','יד מרדכי','נתיב העשרה'],
+  ['בקעת הירדן','ירדן','יריחו','jericho'],
+  ['שפלה','לכיש','בית גוברין'],
+  ['בית שני','second temple','עיר דוד','כותל'],
+  ['בית ראשון','first temple','עיר דוד'],
+  ['רומית','roman','byzantine','ביזנטית','ביזנטי'],
+  ['עות\'מנית','ottoman','מנדט','ממילא'],
+  ['מוזיאון ישראל','israel museum'],
+  ['מדבר יהודה','judean desert','השומרוני הטוב','קומראן','ואדי קלט'],
+  ['גליל עליון','upper galilee','ראש הנקרה','מוזיאון לוחמי הגטאות','פקיעין'],
+  ['גליל תחתון','ארבל','נבי שועיב','כפר כמא'],
+  ['רמת הגולן','גמלא','קצרין','תל פאחר'],
+  ['אפולוניה','appolonia','apollonia'],
+  ['חיפה','haifa','בהאים','ואדי ניסנאס'],
+  ['ראש פינה','תל חצור'],
+  ['הרי ירושלים','judean hills','שרי ירושלים','נבי סמואל','קסטל'],
+  ['צלבני','crusader','crusade'],
+  ['בית שאן','beit shean','beth shean','כוכב הירדן']
+];
+function kws(text){const t=text.toLowerCase();return KW.filter(g=>g.some(k=>t.includes(k)));}
+function matches(a,b){const ka=kws(a.t+' '+(a.p||''));const kb=kws(b.t+' '+(b.p||''));return ka.some(g=>kb.some(h=>h===g));}
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let mySchool='', myCourse='', myName='';
+let selectedMissed=null, selectedAlt=null;
+
+// ════════════════════════════════════════════
+// SETUP
+// ════════════════════════════════════════════
+function onSchoolChange(){
+  const v=document.getElementById('sel-school').value;
+  const fc=document.getElementById('field-course');
+  const cs=document.getElementById('sel-course');
+  cs.innerHTML='<option value="">— בחרו קורס —</option>';
+  if(v&&SCHOOL_COURSES[v]){
+    SCHOOL_COURSES[v].forEach(cid=>{
+      const o=document.createElement('option');
+      o.value=cid; o.textContent=COURSES[cid].name; cs.appendChild(o);
+    });
+    fc.classList.remove('hidden');
+    document.getElementById('field-name').classList.remove('hidden');
+  } else {
+    fc.classList.add('hidden');
+    document.getElementById('field-name').classList.add('hidden');
+  }
+}
+
+function startApp(){
+  mySchool=document.getElementById('sel-school').value;
+  myCourse=document.getElementById('sel-course').value;
+  myName=document.getElementById('inp-name').value||'תלמיד/ה';
+  if(!mySchool||!myCourse){alert('אנא בחרו בית ספר וקורס');return;}
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('main-app').classList.remove('hidden');
+  // User chip
+  const sc=SCHOOLS[mySchool];
+  document.getElementById('user-chip-header').innerHTML=
+    `<div class="user-chip"><div class="dot" style="background:${sc.dot}"></div>${myName} · ${COURSES[myCourse].name}</div>`;
+  document.getElementById('user-chip-header').classList.remove('hidden');
+  document.getElementById('my-user-chip').innerHTML=
+    `<div class="user-chip" style="font-size:12px"><div class="dot" style="background:${sc.dot}"></div>${myName}</div>`;
+  renderMyTiyulim();
+  updateBadge();
+}
+
+function goBack(){
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('setup-screen').classList.remove('hidden');
+}
+
+// ════════════════════════════════════════════
+// MY TIYULIM
+// ════════════════════════════════════════════
+// Global click handlers — called directly via onclick for max compatibility
+window._myMine = []; // current tiyulim cache
+
+function toast(msg) {
+  var t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { if(t.parentNode) t.parentNode.removeChild(t); }, 2600);
+}
+
+
+function doMiss(i) { var t=window._myMine[i]; if(!t){toast("❌ שגיאה");return;} markMissed(tid(t)); toast("❌ סומן כמדולג"); }
+function doUnmiss(i) { var t=window._myMine[i]; if(!t)return; unmarkMissed(tid(t)); toast("✓ הוסר הסימון"); }
+function doSelectAlt(i) {
+  const a = window._currentAlts[i]; if(!a)return;
+  const fa = fmt(a.d);
+  selectAlt(i, tid(a), a.t, fa.full, a.s);
+}
+function doPostSwap() { postSwap(); }
+function doPostGeneral() { postGeneralSwap(); }
+function doBoardOk(id) { confirmSwap(id); }
+function doBoardDel(id) { deleteSwap(id); }
+
+function renderMyTiyulim(){
+  const mine=ALL.filter(t=>t.s===mySchool&&t.c===myCourse).sort((a,b)=>a.d.localeCompare(b.d));
+  window._myMine = mine;
+  const today=new Date().toISOString().slice(0,10);
+  const el=document.getElementById('tiyulim-list');
+  if(!mine.length){el.innerHTML='<div style="padding:30px;text-align:center;color:#64748B">אין טיולים</div>';return;}
+  el.innerHTML=mine.map((t,i)=>{
+    const f=fmt(t.d);
+    const past=t.d<today;
+    const missed=isMissed(t);
+    const sel=selectedMissed&&tid(selectedMissed)===tid(t);
+    return `
+    <div class="tiyul-item${missed?' missed':''}${sel?' selected':''}">
+      <div class="tiyul-date-box" style="${past?'opacity:.5':''}">
+        <div class="day">${f.day}</div>
+        <div class="month">${f.month}</div>
+        <div class="weekday">יום ${f.wd}'</div>
+      </div>
+      <div class="tiyul-content" style="${past?'opacity:.55':''}">
+        <div class="tiyul-title">${t.t}</div>
+        <div class="tiyul-guide">👤 ${t.g}</div>
+      </div>
+      <div class="tiyul-action">
+        ${missed
+          ? `<button class="btn-miss active" onclick="doUnmiss(${i})">✓ מדולג</button>`
+          : past ? '' : `<button class="btn-miss" onclick="doMiss(${i})">❌ לא יכול/ה</button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function markMissed(id){
+  const t=ALL.find(x=>tid(x)===id);if(!t)return;
+  const m=getMissed();if(!m.includes(id))m.push(id);saveMissed(m);
+  selectedMissed=t; selectedAlt=null;
+  renderMyTiyulim();
+  showAlternatives(t);
+}
+
+function unmarkMissed(id){
+  const m=getMissed().filter(x=>x!==id);saveMissed(m);
+  if(selectedMissed&&tid(selectedMissed)===id){selectedMissed=null;selectedAlt=null;showPlaceholder();}
+  renderMyTiyulim();
+}
+
+// ════════════════════════════════════════════
+// ALTERNATIVES
+// ════════════════════════════════════════════
+function showPlaceholder(){
+  document.getElementById('alt-placeholder').classList.remove('hidden');
+  document.getElementById('alt-content').classList.add('hidden');
+}
+
+function showAlternatives(t){
+  document.getElementById('alt-placeholder').classList.add('hidden');
+  document.getElementById('alt-content').classList.remove('hidden');
+  const f=fmt(t.d);
+  document.getElementById('alt-missed-title').textContent=t.t;
+  document.getElementById('alt-missed-date').textContent=`📅 ${f.full} · ${COURSES[t.c].name} · ${SCHOOLS[t.s].name}`;
+
+  // Find alternatives: same topic, different school
+  const alts=ALL.filter(a=>a.s!==t.s && a.d!==t.d && matches(a,t))
+    .sort((a,b)=>a.d.localeCompare(b.d)).slice(0,10);
+
+  const listEl=document.getElementById('alt-list');
+  const swapEl=document.getElementById('swap-form-container');
+  swapEl.classList.add('hidden'); selectedAlt=null;
+
+  if(!alts.length){
+    listEl.innerHTML=`
+      <div class="alt-empty">
+        <div class="icon">🔍</div>
+        <div class="title">לא נמצאו טיולים דומים</div>
+        <div class="sub">אפשר לפרסם בקשה כללית בלוח ההחלפות</div>
+        <button class="btn-select-alt" style="margin-top:16px;max-width:220px" onclick="doPostGeneral()">📢 פרסם בקשה כללית</button>
+      </div>`;
+    return;
+  }
+
+  window._currentAlts = alts;
+  listEl.innerHTML=alts.map((a,i)=>{
+    const fa=fmt(a.d);
+    const sc=SCHOOLS[a.s];
+    const co=COURSES[a.c];
+    return `
+    <div class="alt-card" id="alt-${i}">
+      <div class="alt-card-top">
+        <div class="alt-big-date">
+          <div class="d">${fa.day}</div>
+          <div class="m">${fa.month}</div>
+          <div class="y">${fa.year}</div>
+        </div>
+        <div class="alt-info">
+          <div class="alt-title">${a.t}</div>
+          <div class="alt-meta-row">
+            <span class="meta-chip ${sc.chipClass}">${sc.emoji} ${sc.name}</span>
+            <span class="meta-chip chip-course">📚 ${co.name}</span>
+            ${a.g&&a.g!=='—'?`<span class="meta-chip chip-guide">👤 ${a.g}</span>`:''}
+          </div>
+          ${a.p?`<div class="alt-sites">📍 ${a.p}</div>`:''}
+        </div>
+      </div>
+      <button class="btn-select-alt" id="btn-alt-${i}" onclick="doSelectAlt(${i})">
+        ✓ בחר טיול זה להחלפה
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function selectAlt(i, id, title, dateStr, school){
+  document.querySelectorAll('.btn-select-alt').forEach(b=>b.classList.remove('chosen'));
+  document.getElementById(`btn-alt-${i}`)?.classList.add('chosen');
+  selectedAlt={id,title,dateStr,school};
+  const sc=SCHOOLS[school];
+  const swapEl=document.getElementById('swap-form-container');
+  document.getElementById('swap-form-chosen').textContent=`${sc.emoji} ${title} — ${dateStr} (${sc.name})`;
+  swapEl.classList.remove('hidden');
+  swapEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ════════════════════════════════════════════
+// POST SWAP
+// ════════════════════════════════════════════
+function postSwap(){
+  if(!selectedMissed)return;
+  const note=document.getElementById('swap-note').value;
+  const swaps=getSwaps();
+  swaps.push({
+    id:Date.now(), name:myName, school:mySchool, course:myCourse,
+    fromId:tid(selectedMissed), fromTitle:selectedMissed.t, fromDate:selectedMissed.d,
+    toTitle:selectedAlt?.title||null, toDate:selectedAlt?.dateStr||null, toSchool:selectedAlt?.school||null,
+    note, status:'open', ts:Date.now()
+  });
+  saveSwaps(swaps);
+  updateBadge();
+  document.getElementById('swap-form-container').classList.add('hidden');
+  document.getElementById('swap-note').value='';
+  selectedAlt=null;
+  // Show confirmation
+  const altContent=document.getElementById('alt-content');
+  const conf=document.createElement('div');
+  conf.style.cssText='padding:20px;text-align:center;color:#059669;font-weight:700;font-size:15px;background:#F0FDF4;border-top:2px solid #BBF7D0;';
+  conf.innerHTML='✅ הבקשה פורסמה בלוח ההחלפות!<br><small style="font-weight:normal;color:#64748B">עבור ללוח ההחלפות לראות את הבקשה</small>';
+  altContent.appendChild(conf);
+  setTimeout(()=>conf.remove(),4000);
+}
+
+function postGeneralSwap(){
+  if(!selectedMissed)return;
+  const swaps=getSwaps();
+  swaps.push({
+    id:Date.now(), name:myName, school:mySchool, course:myCourse,
+    fromId:tid(selectedMissed), fromTitle:selectedMissed.t, fromDate:selectedMissed.d,
+    toTitle:null, toDate:null, toSchool:null,
+    note:'מחפש/ת כל חלופה לטיול זה', status:'open', ts:Date.now()
+  });
+  saveSwaps(swaps);
+  updateBadge();
+  alert('✅ הבקשה פורסמה בלוח ההחלפות!');
+}
+
+// ════════════════════════════════════════════
+// BOARD
+// ════════════════════════════════════════════
+function renderBoard(){
+  const swaps=getSwaps().sort((a,b)=>b.ts-a.ts);
+  const el=document.getElementById('board-list');
+  if(!swaps.length){
+    el.innerHTML=`<div class="alt-empty"><div class="icon">🔄</div><div class="title">אין בקשות עדיין</div><div class="sub">סמנו טיול שלא יכולים לעשות כדי לפרסם בקשה</div></div>`;
+    return;
+  }
+  el.innerHTML=swaps.map(s=>{
+    const sc=SCHOOLS[s.school]||{};
+    const co=COURSES[s.course]||{};
+    const fd=fmt(s.fromDate);
+    const status=s.status==='confirmed';
+    return `
+    <div class="board-item">
+      <div class="board-dot" style="background:${sc.dot||'#888'}"></div>
+      <div class="board-content">
+        <div class="board-name">${s.name} <span style="font-size:11px;font-weight:400;color:#64748B">· ${sc.name||s.school} · ${co.name||s.course}</span></div>
+        <div class="board-row">
+          <span style="color:#DC2626">❌ לא יכול/ה: <strong>${s.fromTitle}</strong></span>
+          <span style="color:#64748B">· ${fd.full}</span>
+        </div>
+        ${s.toTitle?`<div class="board-row"><span style="color:#059669">🔄 רוצה להחליף עם: <strong>${s.toTitle}</strong></span>${s.toDate?`<span style="color:#64748B"> · ${s.toDate}</span>`:''}</div>`:''}
+        ${s.note?`<div class="board-note">💬 ${s.note}</div>`:''}
+        <div class="board-actions">
+          ${!status?`<button class="btn-board-ok" onclick="doBoardOk(${s.id})">✅ הוסדר</button>`:'<span style="color:#059669;font-size:12px;font-weight:700">✅ הוסדר</span>'}
+          <button class="btn-board-del" onclick="doBoardDel(${s.id})">🗑️ מחק</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function confirmSwap(id){
+  const s=getSwaps();const i=s.find(x=>x.id===id);if(i)i.status='confirmed';saveSwaps(s);renderBoard();updateBadge();
+}
+function deleteSwap(id){
+  saveSwaps(getSwaps().filter(x=>x.id!==id));renderBoard();updateBadge();
+}
+
+function updateBadge(){
+  const n=getSwaps().filter(s=>s.status==='open').length;
+  const b=document.getElementById('board-badge');
+  if(n>0){b.textContent=n;b.classList.remove('hidden');}else{b.classList.add('hidden');}
+}
+
+// ════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════
+// ════════════════════════════════════════════
+// EVENT DELEGATION (replaces inline onclick)
+// ════════════════════════════════════════════
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  if (action === 'miss') {
+    markMissed(btn.dataset.id);
+  } else if (action === 'unmiss') {
+    unmarkMissed(btn.dataset.id);
+  } else if (action === 'select-alt') {
+    const idx = parseInt(btn.dataset.idx);
+    selectAlt(idx, btn.dataset.id, btn.dataset.title, btn.dataset.date, btn.dataset.school);
+  } else if (action === 'post-swap') {
+    postSwap();
+  } else if (action === 'board-ok') {
+    confirmSwap(parseInt(btn.dataset.id));
+  } else if (action === 'board-del') {
+    deleteSwap(parseInt(btn.dataset.id));
+  } else if (action === 'post-general') {
+    postGeneralSwap();
+  } else if (action === 'go-back') {
+    goBack();
+  } else if (action === 'go-start') {
+    startApp();
+  } else if (action === 'show-section') {
+    showSection(btn.dataset.section);
+  }
+});
+
+function showSection(name){
+  document.getElementById('section-schedule').classList.toggle('hidden',name!=='schedule');
+  document.getElementById('section-board').classList.toggle('hidden',name!=='board');
+  document.getElementById('nav-schedule').classList.toggle('active',name==='schedule');
+  document.getElementById('nav-board').classList.toggle('active',name==='board');
+  if(name==='board')renderBoard();
+}
+</script>
+</body>
+</html>
