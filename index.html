@@ -344,6 +344,7 @@ select:focus, input:focus { outline: none; border-color: #6366F1; }
         <!-- Shown when tiyul selected -->
         <div id="alt-content" class="hidden">
           <div class="alt-panel-header">
+            <button onclick="showPlaceholder()" style="background:none;border:none;font-size:13px;color:#6366F1;cursor:pointer;font-weight:600;padding:0 0 8px 0;display:block">← חזר לרשימה</button>
             <div class="missed-label">❌ לא יכול/ה להגיע לטיול:</div>
             <div class="missed-title" id="alt-missed-title"></div>
             <div class="missed-date" id="alt-missed-date"></div>
@@ -757,14 +758,26 @@ function unmarkMissed(id){
 // ════════════════════════════════════════════
 // ALTERNATIVES
 // ════════════════════════════════════════════
+function isMobile() { return window.innerWidth <= 768; }
+
 function showPlaceholder(){
   document.getElementById('alt-placeholder').classList.remove('hidden');
   document.getElementById('alt-content').classList.add('hidden');
+  // Mobile: show left panel, hide right
+  if (isMobile()) {
+    document.getElementById('left-panel').classList.remove('hide');
+    document.getElementById('right-panel').classList.remove('show');
+  }
 }
 
 function showAlternatives(t){
   document.getElementById('alt-placeholder').classList.add('hidden');
   document.getElementById('alt-content').classList.remove('hidden');
+  // Mobile: hide left panel, show right
+  if (isMobile()) {
+    document.getElementById('left-panel').classList.add('hide');
+    document.getElementById('right-panel').classList.add('show');
+  }
   const f=fmt(t.d);
   document.getElementById('alt-missed-title').textContent=t.t;
   document.getElementById('alt-missed-date').textContent=`📅 ${f.full} · ${COURSES[t.c].name} · ${SCHOOLS[t.s].name}`;
